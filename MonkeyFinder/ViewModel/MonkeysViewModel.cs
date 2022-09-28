@@ -1,4 +1,6 @@
-﻿using MonkeyFinder.Model;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using MonkeyFinder.Model;
 using MonkeyFinder.Services;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -8,17 +10,21 @@ namespace MonkeyFinder.ViewModel;
 public partial class MonkeysViewModel : BaseViewModel
 {
     private MonkeyService monkeyService;
+    private IGeolocation geolocation;
 
-    public MonkeysViewModel(MonkeyService monkeyService)
+    [ObservableProperty]
+    bool isRefreshing;
+
+    public MonkeysViewModel(MonkeyService monkeyService, IGeolocation geolocation)
     {
         Title = "Monkey Finder";
         this.monkeyService = monkeyService;
-        GetMonkeysCommand = new Command(async () => await GetMonkeysAsync());
+        this.geolocation = geolocation;
     }
 
     public ObservableCollection<Monkey> Monkeys { get; } = new();
-    public Command GetMonkeysCommand { get; }
 
+    [RelayCommand]
     private async Task GetMonkeysAsync()
     {
         if (IsBusy) return;
@@ -47,6 +53,39 @@ public partial class MonkeysViewModel : BaseViewModel
         finally
         {
             IsBusy = false;
+            IsRefreshing = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task GetClosestMonkey()
+    {
+        if (IsBusy || Monkeys.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var location = await geolocation.GetLastKnownLocationAsync();
+            if (location == null)
+            {
+                location = await geolocation.GetLocationAsync(new GeolocationRequest
+                {
+                    DesiredAccuracy = GeolocationAccuracy.Medium,
+                    Timeout = TimeSpan.FromSeconds(30)
+                });
+            }
+
+            var first = Monkeys.OrderBy(m => location.CalculateDistance(new Location(m.Latitude, m.Longitude), DistanceUnits.Miles))
+                               .FirstOrDefault();
+
+            await Application.Current.MainPage.DisplayAlert("", first.Name + " " + first.Location, "OK");
+        }
+        catch(Exception ex)
+        {
+            Debug.WriteLine($"Unable to query location: {ex.Message}");
+            await Application.Current.MainPage.DisplayAlert("Error!", ex.Message, "OK");
         }
     }
 }

@@ -33,6 +33,12 @@
             </Grid>
 
             <VerticalStackLayout Padding="10" Spacing="10">
+                <Button
+                    Text="Show on Map"
+                    Command="{Binding OpenMapCommand}"
+                    HorizontalOptions="Center"
+                    WidthRequest="200"
+                    Margin="8"/>
                 <Label Text="{Binding Monkey.Details}"/>
                 <Label Text="{Binding Monkey.Location, StringFormat='Location: {0}'}"/>
                 <Label Text="{Binding Monkey.Population, StringFormat='Population: {0}'}"/>
